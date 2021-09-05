@@ -7,19 +7,56 @@ public class Tetromino : MonoBehaviour
     [SerializeField]
     private Color m_color;
 
+    [SerializeField]
+    private List<AudioClip> m_audioClips;
+
     private const float MOVEMENT_DELAY = 0.25f;
     private const float ROTATE_DELAY = 0.5f;
     private const float FAST_FALLING = 0.025f;
-    private const float NORMAL_FALLING = 0.5f;
-
+    
+    private float m_normalFalling = 0.5f;
     private float m_fallSpeed = 0.5f;
     private float m_lastMoveTime = 0f;
     private float m_lastRotateTime = 0f;
     private float m_lastFallTime = 0f;
-
     private Transform m_modelTransform;
     private Container m_container;
     private List<Transform> m_blockTransforms;
+    private bool m_isActive = false;
+    private AudioSource m_audio;
+
+    public void ActivateTetromino(Vector3 finalPos, float fallingSpeed)
+    {
+        m_normalFalling = fallingSpeed;
+        StartCoroutine("RunSlide", finalPos);
+    }
+
+    private IEnumerator RunSlide(Vector3 finalPos)
+    {
+        Vector3 posStart = transform.position;
+        float duration = 0.5f;
+        float timeStart = Time.time;
+        float angle = 0f;
+        float angleChange = 360f / duration;
+
+        while (Time.time <= timeStart + duration)
+        {
+            transform.position = Vector3.Slerp(posStart, finalPos, (Time.time - timeStart) / duration);
+            angle = 360f / (duration / (Time.time - timeStart));
+            transform.rotation = Quaternion.Euler(0, 0, angle);
+
+            yield return null;
+        }
+        transform.rotation = Quaternion.identity;
+        transform.position = finalPos;
+        m_isActive = true;
+        m_lastFallTime = Time.time;
+        if (m_container.IsBlockCollided(GetBlocks(new Vector2Int(0, 0))))
+        {
+            m_container.GameOver();
+            Destroy(gameObject);
+        }
+    }
 
     private void Awake()
     {
@@ -30,6 +67,8 @@ public class Tetromino : MonoBehaviour
         m_blockTransforms.Add(m_modelTransform.GetChild(1));
         m_blockTransforms.Add(m_modelTransform.GetChild(2));
         m_blockTransforms.Add(m_modelTransform.GetChild(3));
+        m_audio = gameObject.GetComponent<AudioSource>();
+        m_audio.volume = 0.25f;
 
         // Set the color for each block in a shape
         foreach (var r in transform.GetComponentsInChildren<Renderer>())
@@ -41,6 +80,10 @@ public class Tetromino : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        if(!m_isActive)
+        {
+            return;
+        }
         HandleMovement();
         HandleRotation();
         HandleFalling();
@@ -80,7 +123,7 @@ public class Tetromino : MonoBehaviour
         }
         else
         {
-            m_fallSpeed = NORMAL_FALLING;
+            m_fallSpeed = m_normalFalling;
         }
 
         if(Time.time > m_lastFallTime + m_fallSpeed)
@@ -93,6 +136,7 @@ public class Tetromino : MonoBehaviour
     {
         if (!m_container.IsBlockCollided(GetBlocks(new Vector2Int(Mathf.RoundToInt(movement.x), Mathf.RoundToInt(movement.y)))))
         {
+            m_audio.PlayOneShot(m_audioClips[0]);
             gameObject.transform.Translate(movement);
             m_lastMoveTime = Time.time;
         }        
@@ -107,6 +151,7 @@ public class Tetromino : MonoBehaviour
         }
         else
         {
+            m_audio.PlayOneShot(m_audioClips[1]);
             m_lastRotateTime = Time.time;
         }
     }
