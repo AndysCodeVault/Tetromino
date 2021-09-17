@@ -32,6 +32,8 @@ public class Container : MonoBehaviour
     private int m_lines;
     private int m_level;
     private AudioSource m_audio;
+    private List<ObjectPool> m_tetrominosPools;
+    private ObjectPool m_blocksPool;
 
     private void Awake()
     {
@@ -45,6 +47,12 @@ public class Container : MonoBehaviour
         m_popupText = transform.Find("Menu Popup/Canvas/Text (TMP)").GetComponent<TMP_Text>();
         m_audio = gameObject.GetComponent<AudioSource>();
         m_audio.volume = 0.25f;
+        m_tetrominosPools = new List<ObjectPool>();
+        foreach(var tetromino in m_tetrominoTemplates)
+        {
+            m_tetrominosPools.Add(new ObjectPool(tetromino, transform.Find("ObjectPoolsObjects"), 2));
+        }
+        m_blocksPool = new ObjectPool(m_blockTemplate, transform.Find("ObjectPoolsObjects"), 120);
 
         m_scoreText.text = "";
         m_linesText.text = "";
@@ -120,13 +128,15 @@ public class Container : MonoBehaviour
         return false;
     }
 
-    public void SetTetromino(List<Vector2Int> blocks, Color color)
+    public void SetTetromino(List<Vector2Int> blocks, Color color, GameObject tetromino)
     {
         var yList = new HashSet<int>();
 
         foreach(Vector2Int block in blocks)
         {
-            var newBlock = GameObject.Instantiate(m_blockTemplate, m_blocksTransform);
+            //var newBlock = GameObject.Instantiate(m_blockTemplate, m_blocksTransform);
+            var newBlock = m_blocksPool.Get();
+            newBlock.transform.parent = m_blocksTransform;
             newBlock.transform.position = new Vector3(block.x, block.y, 0);
             newBlock.GetComponent<Renderer>().material.SetColor("_Color", color);
             m_placedBlocksTransform.Add(newBlock.transform);
@@ -135,6 +145,11 @@ public class Container : MonoBehaviour
 
         CheckLineClears(yList);
         GetNextPiece();
+
+        //Destroy tetromino
+        var tetrominoScript = tetromino.GetComponent<Tetromino>();
+        tetrominoScript.DeactivateTetromino();
+        m_tetrominosPools[tetrominoScript.Index].Return(tetromino);
     }
 
     private void CheckLineClears(HashSet<int> yList)
@@ -182,8 +197,11 @@ public class Container : MonoBehaviour
                 m_placedBlocksTransform.Remove(block);
 
                 float delay = Mathf.Abs((float)pos.x) / 10f;
-                block.GetComponent<FadeOut>().BeginFade(delay, 0.5f);
-                GameObject.Destroy(block.gameObject, 1f);
+                var fadeScript = block.GetComponent<FadeOut>();
+                fadeScript.BeginFade(delay, 0.5f);
+
+                //GameObject.Destroy(block.gameObject, 1f);
+                m_blocksPool.Return(block.gameObject, 1.05f);
             }
         }
 
@@ -241,7 +259,12 @@ public class Container : MonoBehaviour
     {
         var index = Mathf.FloorToInt(Random.Range(0, m_tetrominoTemplates.Count));
         var template = m_tetrominoTemplates[index];
-        var newTetromino = GameObject.Instantiate(template, m_nextPiecePlaceholder);
+        //var newTetromino = GameObject.Instantiate(template, m_nextPiecePlaceholder);
+        var newTetromino = m_tetrominosPools[index].Get();
+        newTetromino.transform.parent = m_nextPiecePlaceholder;
+        newTetromino.transform.Find("Model").rotation = template.transform.Find("Model").rotation;
+        //Debug.Log(template.transform.Find("Model").rotation);
+        newTetromino.GetComponent<Tetromino>().Index = index;
         if(index == 0 || index == 3)
         {
             newTetromino.transform.localPosition = new Vector3(-0.75f, 0, 0);
@@ -265,7 +288,7 @@ public class Container : MonoBehaviour
         Invoke("CreateNextPiece", 0.25f);
     }
 
-    public void GameOver()
+    public void GameOver(GameObject lastTetromino)
     {
         m_popupText.text = "Game Over";
         for(int i = 0; i < m_blocksTransform.childCount; i++)
@@ -279,5 +302,7 @@ public class Container : MonoBehaviour
                 Random.Range(-forceValue, forceValue));
             block.GetComponent<Rigidbody>().AddForce(force);
         }
+
+        m_tetrominosPools[lastTetromino.GetComponent<Tetromino>().Index].Return(lastTetromino);
     }
 }
