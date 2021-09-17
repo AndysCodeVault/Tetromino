@@ -3,7 +3,9 @@ using System.Collections.Generic;
 using UnityEngine;
 
 public class Tetromino : MonoBehaviour
-{    
+{
+    public int Index { get; set; }
+
     [SerializeField]
     private Color m_color;
 
@@ -31,6 +33,11 @@ public class Tetromino : MonoBehaviour
         StartCoroutine("RunSlide", finalPos);
     }
 
+    public void DeactivateTetromino()
+    {
+        m_isActive = false;
+    }
+
     private IEnumerator RunSlide(Vector3 finalPos)
     {
         Vector3 posStart = transform.position;
@@ -53,8 +60,8 @@ public class Tetromino : MonoBehaviour
         m_lastFallTime = Time.time;
         if (m_container.IsBlockCollided(GetBlocks(new Vector2Int(0, 0))))
         {
-            m_container.GameOver();
-            Destroy(gameObject);
+            m_container.GameOver(gameObject);
+            //Destroy(gameObject);
         }
     }
 
@@ -160,8 +167,8 @@ public class Tetromino : MonoBehaviour
     {
         if(m_container.IsBlockCollided(GetBlocks(new Vector2Int(0, -1))))
         {
-            m_container.SetTetromino(GetBlocks(new Vector2Int(0, 0)), m_color);
-            GameObject.Destroy(gameObject);
+            m_container.SetTetromino(GetBlocks(new Vector2Int(0, 0)), m_color, gameObject);
+            //GameObject.Destroy(gameObject);
         }
         else
         {
