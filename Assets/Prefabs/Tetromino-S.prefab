@@ -273,6 +273,7 @@ MonoBehaviour:
   m_audioClips:
   - {fileID: 8300000, guid: e6dbdd5caf8624140b5acbea7a6b9bd0, type: 3}
   - {fileID: 8300000, guid: 0305afb3692aa7b4681bc884c94023c7, type: 3}
+  m_maxRotation: -180
 --- !u!82 &2754331020049777715
 AudioSource:
   m_ObjectHideFlags: 0

@@ -12,15 +12,23 @@ public class Tetromino : MonoBehaviour
     [SerializeField]
     private List<AudioClip> m_audioClips;
 
-    private const float MOVEMENT_DELAY = 0.25f;
+    [SerializeField]
+    private float m_maxRotation;
+
+    private const float SINGLE_ROTATION = -90f;
+    private const float FIRST_MOVEMENT_DELAY = 0.25f;
+    private const float FAST_MOVEMENT_DELAY = 0.075f;
     private const float ROTATE_DELAY = 0.5f;
     private const float FAST_FALLING = 0.025f;
-    
+
+    private float m_movementDelay = FIRST_MOVEMENT_DELAY;
     private float m_normalFalling = 0.5f;
     private float m_fallSpeed = 0.5f;
     private float m_lastMoveTime = 0f;
     private float m_lastRotateTime = 0f;
     private float m_lastFallTime = 0f;
+    private int m_movementCounts = 0;
+
     private Transform m_modelTransform;
     private Container m_container;
     private List<Transform> m_blockTransforms;
@@ -68,7 +76,10 @@ public class Tetromino : MonoBehaviour
     private void Awake()
     {
         m_modelTransform = gameObject.transform.Find("Model");
-        m_container = GameObject.Find("Container").GetComponent<Container>();
+        if (GameObject.Find("Container"))
+        {
+            m_container = GameObject.Find("Container").GetComponent<Container>();
+        }
         m_blockTransforms = new List<Transform>();
         m_blockTransforms.Add(m_modelTransform.GetChild(0));
         m_blockTransforms.Add(m_modelTransform.GetChild(1));
@@ -98,7 +109,7 @@ public class Tetromino : MonoBehaviour
 
     private void HandleMovement()
     {
-        if (Time.time > m_lastMoveTime + MOVEMENT_DELAY)
+        if (Time.time > m_lastMoveTime + m_movementDelay)
         {
             if (Input.GetAxis("Horizontal") > 0)
             {
@@ -107,6 +118,11 @@ public class Tetromino : MonoBehaviour
             else if (Input.GetAxis("Horizontal") < 0)
             {
                 Move(new Vector3(-1, 0, 0));
+            }
+            else
+            {
+                m_movementDelay = FIRST_MOVEMENT_DELAY;
+                m_movementCounts = 0;
             }
         }
     }
@@ -146,15 +162,28 @@ public class Tetromino : MonoBehaviour
             m_audio.PlayOneShot(m_audioClips[0]);
             gameObject.transform.Translate(movement);
             m_lastMoveTime = Time.time;
-        }        
+            if(m_movementCounts > 0)
+            {
+                m_movementDelay = FAST_MOVEMENT_DELAY;
+            }            
+            m_movementCounts += 1;
+        }
     }
 
     private void Rotate()
     {
-        m_modelTransform.Rotate(0, 0, -90f);
+        float z = m_modelTransform.rotation.eulerAngles.z;        
+        if(Mathf.Abs(z) >= Mathf.Abs(m_maxRotation))
+        {
+            m_modelTransform.rotation = Quaternion.Euler(new Vector3(0, 0, 0));
+        }
+        else
+        {
+            m_modelTransform.Rotate(0, 0, SINGLE_ROTATION);
+        }
         if (m_container.IsBlockCollided(GetBlocks(new Vector2Int(0, 0))))
         {
-            m_modelTransform.Rotate(0, 0, 90f);
+            m_modelTransform.rotation = Quaternion.Euler(new Vector3(0, 0, z));
         }
         else
         {
