@@ -35,8 +35,17 @@ public class Tetromino : MonoBehaviour
     private bool m_isActive = false;
     private AudioSource m_audio;
 
-    public void ActivateTetromino(Vector3 finalPos, float fallingSpeed)
+    private string m_horizontalMovementName;
+    private string m_verticalMovementName;
+    private string m_fireButtonName;
+
+    public void ActivateTetromino(Vector3 finalPos, float fallingSpeed, string movementNamePrefix, GameObject containerGo)
     {
+        m_container = containerGo.GetComponent<Container>();
+        m_horizontalMovementName = movementNamePrefix + "Horizontal";
+        m_verticalMovementName = movementNamePrefix + "Vertical";
+        m_fireButtonName = movementNamePrefix + "Fire1";
+
         m_normalFalling = fallingSpeed;
         StartCoroutine("RunSlide", finalPos);
     }
@@ -69,17 +78,12 @@ public class Tetromino : MonoBehaviour
         if (m_container.IsBlockCollided(GetBlocks(new Vector2Int(0, 0))))
         {
             m_container.GameOver(gameObject);
-            //Destroy(gameObject);
         }
     }
 
     private void Awake()
     {
-        m_modelTransform = gameObject.transform.Find("Model");
-        if (GameObject.Find("Container"))
-        {
-            m_container = GameObject.Find("Container").GetComponent<Container>();
-        }
+        m_modelTransform = gameObject.transform.Find("Model");        
         m_blockTransforms = new List<Transform>();
         m_blockTransforms.Add(m_modelTransform.GetChild(0));
         m_blockTransforms.Add(m_modelTransform.GetChild(1));
@@ -111,11 +115,11 @@ public class Tetromino : MonoBehaviour
     {
         if (Time.time > m_lastMoveTime + m_movementDelay)
         {
-            if (Input.GetAxis("Horizontal") > 0)
+            if (Input.GetAxis(m_horizontalMovementName) > 0)
             {
                 Move(new Vector3(1, 0, 0));
             }
-            else if (Input.GetAxis("Horizontal") < 0)
+            else if (Input.GetAxis(m_horizontalMovementName) < 0)
             {
                 Move(new Vector3(-1, 0, 0));
             }
@@ -131,7 +135,7 @@ public class Tetromino : MonoBehaviour
     {
         if(Time.time > m_lastRotateTime + ROTATE_DELAY)
         {
-            if(Input.GetAxis("Vertical") > 0)
+            if(Input.GetAxis(m_verticalMovementName) > 0 || Input.GetAxis(m_fireButtonName) > 0)
             {
                 Rotate();
             }
@@ -140,7 +144,7 @@ public class Tetromino : MonoBehaviour
 
     private void HandleFalling()
     {
-        if(Input.GetAxis("Vertical") < 0)
+        if(Input.GetAxis(m_verticalMovementName) < 0)
         {
             m_fallSpeed = FAST_FALLING;
         }

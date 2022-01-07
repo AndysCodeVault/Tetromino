@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using TMPro;
 using UnityEngine.UI;
+using UnityEditor.Presets;
 
 public class Container : MonoBehaviour
 {
@@ -34,9 +35,22 @@ public class Container : MonoBehaviour
     private AudioSource m_audio;
     private List<ObjectPool> m_tetrominosPools;
     private ObjectPool m_blocksPool;
+    private string m_movementNamePrefix;
+
+    [SerializeField]
+    private int m_playerNumber = 0;
 
     private void Awake()
     {
+        if (Settings.mode == PlayerMode.Single)
+        {
+            m_movementNamePrefix = "SinglePlayer";
+        }
+        else
+        {
+            m_movementNamePrefix = Settings.GetControlType(m_playerNumber);
+        }        
+
         m_blocksTransform = gameObject.transform.Find("Blocks");
         m_placedBlocksTransform = new List<Transform>();
         m_tetrominoPlaceholder = gameObject.transform.Find("Tetromino");
@@ -105,13 +119,17 @@ public class Container : MonoBehaviour
 
     public bool IsBlockCollided(List<Vector2Int> blocks)
     {
-        foreach(Vector2Int block in blocks)
+        int minX = Mathf.RoundToInt(transform.position.x) + MIN_X;
+        int maxX = Mathf.RoundToInt(transform.position.x) + MAX_X;
+        int minY = Mathf.RoundToInt(transform.position.y) + MIN_Y;
+
+        foreach (Vector2Int block in blocks)
         {
-            if(block.x <= MIN_X || block.x >= MAX_X)
+            if(block.x <= minX || block.x >= maxX)
             {
                 return true;
             }            
-            if(block.y <= MIN_Y)
+            if(block.y <= minY)
             {
                 return true;
             }
@@ -133,8 +151,7 @@ public class Container : MonoBehaviour
         var yList = new HashSet<int>();
 
         foreach(Vector2Int block in blocks)
-        {
-            //var newBlock = GameObject.Instantiate(m_blockTemplate, m_blocksTransform);
+        {            
             var newBlock = m_blocksPool.Get();
             newBlock.transform.parent = m_blocksTransform;
             newBlock.transform.position = new Vector3(block.x, block.y, 0);
@@ -156,12 +173,15 @@ public class Container : MonoBehaviour
     {
         var lineClears = new List<int>();
 
+        int minX = Mathf.RoundToInt(transform.position.x) + MIN_X;
+        int maxX = Mathf.RoundToInt(transform.position.x) + MAX_X;
+
         foreach(int y in yList)
         {
             bool isLineClear = true;
             Vector2Int pos = new Vector2Int();
             pos.y = y;
-            for(pos.x = MIN_X + 1; pos.x < MAX_X; pos.x += 1)
+            for(pos.x = minX + 1; pos.x < maxX; pos.x += 1)
             {
                 if(!IsBlockAtPos(pos))
                 {
@@ -186,21 +206,23 @@ public class Container : MonoBehaviour
 
     private void ClearLines(List<int> lineClears)
     {
+        int minX = Mathf.RoundToInt(transform.position.x) + MIN_X;
+        int maxX = Mathf.RoundToInt(transform.position.x) + MAX_X;
+
         // Destroy all the cubes in the lineClears
         foreach (int y in lineClears)
         {
             Vector2Int pos = new Vector2Int();
             pos.y = y;
-            for (pos.x = MIN_X + 1; pos.x < MAX_X; pos.x += 1)
+            for (pos.x = minX + 1; pos.x < maxX; pos.x += 1)
             {                
                 var block = GetBlockAtPos(pos);
                 m_placedBlocksTransform.Remove(block);
 
-                float delay = Mathf.Abs((float)pos.x) / 10f;
+                float delay = Mathf.Abs((float)pos.x - transform.position.x) / 10f;
                 var fadeScript = block.GetComponent<FadeOut>();
                 fadeScript.BeginFade(delay, 0.5f);
 
-                //GameObject.Destroy(block.gameObject, 1f);
                 m_blocksPool.Return(block.gameObject, 1.05f);
             }
         }
@@ -259,11 +281,9 @@ public class Container : MonoBehaviour
     {
         var index = Mathf.FloorToInt(Random.Range(0, m_tetrominoTemplates.Count));
         var template = m_tetrominoTemplates[index];
-        //var newTetromino = GameObject.Instantiate(template, m_nextPiecePlaceholder);
         var newTetromino = m_tetrominosPools[index].Get();
         newTetromino.transform.parent = m_nextPiecePlaceholder;
         newTetromino.transform.Find("Model").rotation = template.transform.Find("Model").rotation;
-        //Debug.Log(template.transform.Find("Model").rotation);
         newTetromino.GetComponent<Tetromino>().Index = index;
         if(index == 0 || index == 3)
         {
@@ -284,7 +304,8 @@ public class Container : MonoBehaviour
         var nextPiece = m_nextPiecePlaceholder.GetChild(0);
         nextPiece.transform.parent = m_tetrominoPlaceholder;
         float fallingSpeed = 1f / (m_level + 1f);
-        nextPiece.GetComponent<Tetromino>().ActivateTetromino(new Vector3(0, 11, 0), fallingSpeed);
+        Vector3 startPos = new Vector3(transform.position.x, transform.position.y + 11, transform.position.z);
+        nextPiece.GetComponent<Tetromino>().ActivateTetromino(startPos, fallingSpeed, m_movementNamePrefix, gameObject);
         Invoke("CreateNextPiece", 0.25f);
     }
 
